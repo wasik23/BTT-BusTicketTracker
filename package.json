@@ -12,7 +12,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "vercel-build": "node scripts/prepare-deploy.mjs && prisma generate && prisma db push --accept-data-loss --skip-generate && next build",
+    "vercel-build": "npm run build",
     "setup": "node scripts/setup.mjs"
   },
   "dependencies": {
