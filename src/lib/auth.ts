@@ -6,12 +6,12 @@ export type AdminRole = 'SUPER_ADMIN' | 'ADMIN' | 'STAFF';
 
 const COOKIE_NAME = 'btt_admin';
 const ALG = 'HS256';
+const FALLBACK_SECRET = 'btt-local-compatible-fallback-secret-please-change';
 
 function getSecret(): Uint8Array {
-  const raw = process.env.JWT_SECRET;
-  if (!raw || raw.length < 32) {
-    throw new Error('JWT_SECRET must be set in .env (at least 32 characters)');
-  }
+  const raw = process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 32
+    ? process.env.JWT_SECRET
+    : FALLBACK_SECRET;
   return new TextEncoder().encode(raw);
 }
 
