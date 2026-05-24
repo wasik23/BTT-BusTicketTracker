@@ -1,0 +1,192 @@
+// BTT - Bus Ticket Tracker
+// Database schema. Run `npm run db:push` after editing.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Buses, layouts, routes
+// ============================================================
+
+model Bus {
+  id           String   @id @default(cuid())
+  name         String                                  // e.g. "BTT Express 1"
+  numberPlate  String   @unique                        // e.g. "Dhaka Metro Ba 11-2345"
+  busType      String   @default("AC")                 // AC / Non-AC / Sleeper
+  totalSeats   Int                                     // derived from layout, stored for fast access
+  layoutJson   String                                  // 2D seat layout as JSON string: [["1A","1B",null,"1C","1D"], ...]
+  photos       BusPhoto[]
+  driverName   String?
+  driverPhone  String?
+  supervisorName  String?
+  supervisorPhone String?
+  isActive     Boolean  @default(true)                 // admin can disable for maintenance
+  notes        String?                                 // free text shown to passengers
+  trips        Trip[]
+  gpsPings     GpsPing[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model BusPhoto {
+  id        String   @id @default(cuid())
+  bus       Bus      @relation(fields: [busId], references: [id], onDelete: Cascade)
+  busId     String
+  url       String                                     // /uploads/<filename>
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Route {
+  id            String  @id @default(cuid())
+  origin        String                                 // e.g. "Dhaka"
+  destination   String                                 // e.g. "Cox's Bazar"
+  stopsJson     String  @default("[]")                 // [{name, etaMinutesFromStart}] as JSON string
+  distanceKm    Int?
+  baseFareBdt   Int                                    // price in BDT (integer, no paisa)
+  isActive      Boolean @default(true)
+  trips         Trip[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// One scheduled departure of a bus on a route on a given date
+model Trip {
+  id            String   @id @default(cuid())
+  bus           Bus      @relation(fields: [busId], references: [id])
+  busId         String
+  route         Route    @relation(fields: [routeId], references: [id])
+  routeId       String
+  departureAt   DateTime
+  fareBdt       Int                                    // can override route.baseFareBdt
+  status        String     @default("SCHEDULED")       // SCHEDULED | BOARDING | IN_TRANSIT | COMPLETED | CANCELLED
+  bookings      Booking[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([departureAt])
+  @@index([busId, departureAt])
+}
+
+// ============================================================
+// Bookings (guest checkout — no User table)
+// ============================================================
+
+model Booking {
+  id              String          @id @default(cuid())
+  reference       String          @unique               // human-friendly: "BTT-7K2X9"
+  trip            Trip            @relation(fields: [tripId], references: [id])
+  tripId          String
+  passengerName   String
+  passengerPhone  String                                // also used to look up booking later
+  passengerEmail  String?
+  seats           BookingSeat[]
+  totalBdt        Int
+  paymentMethod   String                                // BKASH | NAGAD | CASH_ON_BOARD
+  paymentStatus   String          @default("PENDING")   // PENDING | PAID | HELD | CANCELLED | REFUNDED
+  paymentTxnRef   String?                               // gateway txn id once paid
+  holdExpiresAt   DateTime?                             // for CASH_ON_BOARD: auto-release if not boarded
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([passengerPhone])
+  @@index([tripId])
+}
+
+model BookingSeat {
+  id         String   @id @default(cuid())
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingId  String
+  seatLabel  String                                    // e.g. "1A"
+  tripId     String                                    // denormalized so we can unique-constrain
+  createdAt  DateTime @default(now())
+
+  // A seat on a trip can only be booked once at a time
+  @@unique([tripId, seatLabel])
+}
+
+// ============================================================
+// GPS tracking — generic HTTP endpoint accepts pings
+// ============================================================
+
+model GpsPing {
+  id        String   @id @default(cuid())
+  bus       Bus      @relation(fields: [busId], references: [id], onDelete: Cascade)
+  busId     String
+  lat       Float
+  lng       Float
+  speedKmh  Float?
+  heading   Float?                                     // 0-360 degrees
+  recordedAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([busId, recordedAt(sort: Desc)])
+}
+
+// ============================================================
+// Admin users
+// ============================================================
+
+model AdminUser {
+  id           String     @id @default(cuid())
+  username     String     @unique
+  passwordHash String                                 // bcrypt
+  fullName     String?
+  phone        String?
+  role         String     @default("ADMIN")             // SUPER_ADMIN | ADMIN | STAFF
+  isActive     Boolean    @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+// ============================================================
+// Site-wide settings — all editable from admin dashboard
+// Stored as flexible key/value so we can add new settings
+// without schema changes.
+// ============================================================
+
+model Setting {
+  key       String   @id                              // e.g. "company.name", "payment.bkash.enabled"
+  value     String                                    // JSON-stringified
+  isSecret  Boolean  @default(false)                  // if true, value is encrypted at rest
+  updatedAt DateTime @updatedAt
+}
+
+// Known setting keys (for reference — actual storage is flexible):
+//
+// Company / contact:
+//   company.name              "BTT - Bus Ticket Tracker"
+//   company.logoUrl           "/uploads/logo.png"
+//   company.address           "Dhaka, Bangladesh"
+//   company.ownerName         "..."
+//   company.ownerPhone        "+8801..."
+//   company.supportPhone      "+8801..."
+//   company.complaintPhone    "+8801..."
+//   company.email             "..."
+//   company.aboutText         "..."
+//   company.termsText         "..."
+//
+// Payment toggles + credentials (credentials stored encrypted):
+//   payment.bkash.enabled       "true" / "false"
+//   payment.bkash.appKey        (secret)
+//   payment.bkash.appSecret     (secret)
+//   payment.bkash.username      (secret)
+//   payment.bkash.password      (secret)
+//   payment.bkash.sandbox       "true" / "false"
+//   payment.nagad.enabled       "true" / "false"
+//   payment.nagad.merchantId    (secret)
+//   payment.nagad.merchantNumber (secret)
+//   payment.nagad.publicKey     (secret)
+//   payment.nagad.privateKey    (secret)
+//   payment.nagad.sandbox       "true" / "false"
+//   payment.cashOnBoard.enabled "true" / "false"
+//   payment.cashOnBoard.holdMinutes "120"   (auto-release after N minutes)
+//   payment.serviceFeeBdt       "0"
