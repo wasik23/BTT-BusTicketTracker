@@ -6,13 +6,15 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "netlify-build": "node scripts/prepare-deploy.mjs && prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "vercel-build": "npm run build",
+    "db:deploy": "node scripts/prepare-deploy.mjs && prisma db push --accept-data-loss --skip-generate && npm run db:seed",
+    "vercel-build": "npm run netlify-build",
     "setup": "node scripts/setup.mjs"
   },
   "dependencies": {
