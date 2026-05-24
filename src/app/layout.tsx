@@ -47,6 +47,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {company.complaintPhone && <div>Complaints: {company.complaintPhone}</div>}
             </div>
           </div>
+          <div className="border-t border-slate-800">
+            <div className="max-w-6xl mx-auto px-4 py-3 text-xs text-slate-400 flex flex-col md:flex-row gap-1 md:gap-4 justify-between">
+              <div>
+                © {new Date().getFullYear()} BTT — Bus Ticket Tracker. All rights reserved.
+              </div>
+              <div className="space-x-3">
+                <a href="mailto:washique234@gmail.com" className="hover:text-white">washique234@gmail.com</a>
+                <a href="tel:+8801920065926" className="hover:text-white">+880 1920-065926</a>
+              </div>
+            </div>
+          </div>
         </footer>
       </body>
     </html>
