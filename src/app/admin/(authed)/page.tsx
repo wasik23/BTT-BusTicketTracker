@@ -4,21 +4,34 @@ import { db } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminHome() {
-  const [busCount, tripCount, bookingsToday, paidRevenue] = await Promise.all([
-    db.bus.count(),
-    db.trip.count({ where: { departureAt: { gte: new Date() } } }),
-    db.booking.count({ where: { createdAt: { gte: startOfToday() } } }),
-    db.booking.aggregate({
-      _sum: { totalBdt: true },
-      where: { paymentStatus: 'PAID', createdAt: { gte: startOfToday() } }
-    })
-  ]);
+  let busCount = 0;
+  let tripCount = 0;
+  let bookingsToday = 0;
+  let paidRevenue = 0;
+
+  try {
+    const [buses, trips, bookings, revenue] = await Promise.all([
+      db.bus.count(),
+      db.trip.count({ where: { departureAt: { gte: new Date() } } }),
+      db.booking.count({ where: { createdAt: { gte: startOfToday() } } }),
+      db.booking.aggregate({
+        _sum: { totalBdt: true },
+        where: { paymentStatus: 'PAID', createdAt: { gte: startOfToday() } }
+      })
+    ]);
+    busCount = buses;
+    tripCount = trips;
+    bookingsToday = bookings;
+    paidRevenue = revenue._sum.totalBdt ?? 0;
+  } catch (error) {
+    console.error('Admin dashboard database unavailable; showing fallback counts.', error);
+  }
 
   const cards = [
     { label: 'Buses', value: busCount, href: '/admin/buses' },
     { label: 'Upcoming trips', value: tripCount, href: '/admin/routes' },
     { label: "Today's bookings", value: bookingsToday, href: '/admin/bookings' },
-    { label: "Today's revenue (paid)", value: `৳${paidRevenue._sum.totalBdt ?? 0}`, href: '/admin/bookings' }
+    { label: "Today's revenue (paid)", value: `BDT ${paidRevenue}`, href: '/admin/bookings' }
   ];
 
   return (

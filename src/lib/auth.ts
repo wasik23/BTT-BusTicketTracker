@@ -68,5 +68,6 @@ export async function clearSessionCookie(): Promise<void> {
 export const ADMIN_COOKIE_NAME = COOKIE_NAME;
 
 export async function touchLastLogin(userId: string): Promise<void> {
+  if (userId === 'seed-admin') return;
   await db.adminUser.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
 }
