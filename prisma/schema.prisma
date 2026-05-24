@@ -6,7 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  // Local dev uses SQLite. For Vercel deploy this is swapped to "postgresql"
+  // by the prepare-deploy script (see README "Deploy" section).
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 

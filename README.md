@@ -66,19 +66,30 @@ Vercel gives you `BTT-BusTicketTracker.vercel.app` free. To use a custom domain 
 
 ---
 
-## Local development
+## Run it on any computer (fresh clone)
 
-```powershell
-nvm use 22.22.3
+**Requirements:** [Node.js 18.18+ or 22 LTS](https://nodejs.org/) — that's it. No PostgreSQL install needed for local dev (uses SQLite).
+
+```bash
+git clone https://github.com/wasik23/BTT-BusTicketTracker.git
+cd BTT-BusTicketTracker
 npm install
-copy .env.example .env
-# edit .env: set DATABASE_URL to your Neon connection string (or a local Postgres)
-npm run db:push
-npm run db:seed
+npm run setup
 npm run dev
 ```
 
-Open http://localhost:3000
+That's it. Open http://localhost:3000
+
+**What `npm run setup` does** (one-time):
+1. Creates `.env` from `.env.example`
+2. Generates the Prisma client
+3. Creates a local SQLite database (`dev.db`)
+4. Seeds 2 demo buses, 3 trips, sample bookings, mock GPS pings
+
+**Login as admin:** `admin` / `admin123`
+
+To re-seed (wipe and reload demo data) later: `npm run db:seed`
+To browse the DB visually: `npm run db:studio`
 
 ## First steps as the owner
 
