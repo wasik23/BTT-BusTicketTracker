@@ -24,6 +24,16 @@ async function main() {
       }
     });
     console.log(`Created super admin: ${username} / ${password}`);
+  } else {
+    await db.adminUser.update({
+      where: { username },
+      data: {
+        passwordHash: await bcrypt.hash(password, 10),
+        role: 'SUPER_ADMIN',
+        isActive: true
+      }
+    });
+    console.log(`Updated super admin password: ${username} / ${password}`);
   }
 
   const defaults: Array<[string, string, boolean]> = [
