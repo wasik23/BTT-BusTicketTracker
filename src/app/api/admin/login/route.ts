@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { createSession, setSessionCookie, touchLastLogin } from '@/lib/auth';
+import { createSession, setSessionCookie, touchLastLogin, type AdminRole } from '@/lib/auth';
 
 const Body = z.object({ username: z.string().min(1), password: z.string().min(1) });
 
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
   if (!ok) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
 
-  const token = await createSession({ userId: user.id, username: user.username, role: user.role });
+  const token = await createSession({ userId: user.id, username: user.username, role: user.role as AdminRole });
   await setSessionCookie(token);
   await touchLastLogin(user.id);
   return NextResponse.json({ ok: true });
